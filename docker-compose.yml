@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # Serviço do Banco de Dados (PostgreSQL)
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=petadmin
+      - POSTGRES_PASSWORD=petsecret
+      - POSTGRES_DB=petapp_db
+    ports:
+      - "5432:5432"
+
+  # Serviço da sua API (FastAPI)
+  api:
+    build: .
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    environment:
+      # A URL de conexão: postgresql://usuario:senha@host:porta/banco
+      - DATABASE_URL=postgresql://petadmin:petsecret@db:5432/petapp_db
+    volumes:
+      - .:/code  # Sincroniza sua pasta local com o container (Hot Reload)
+
+volumes:
+  postgres_data:
