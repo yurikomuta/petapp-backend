@@ -18,3 +18,22 @@ class UsuarioResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+# --- SCHEMAS DE PET ---
+class PetBase(BaseModel):
+    nome: str
+    raca: Optional[str] = None
+    peso: Optional[str] = None
+    alergias: Optional[str] = None
+    observacoes: Optional[str] = None
+    # Foto deixaremos para depois
+
+class PetCreate(PetBase):
+    pass
+
+class PetResponse(PetBase):
+    id: int
+    dono_id: int
+    
+    class Config:
+        from_attributes = True
