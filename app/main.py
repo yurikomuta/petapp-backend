@@ -58,3 +58,39 @@ def listar_meus_pets(
     current_user: models.Usuario = Depends(auth.get_current_user)
 ):
     return crud.listar_pets_do_usuario(db=db, user_id=current_user.id)
+
+# --- ROTAS DE CONTRATO (Só Profissional cria) ---
+@app.post("/contratos/", response_model=schemas.ContratoResponse)
+def criar_contrato(
+    contrato: schemas.ContratoCreate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    if current_user.tipo != models.TipoUsuario.PROFISSIONAL:
+        raise HTTPException(status_code=403, detail="Apenas profissionais podem criar contratos")
+    
+    return crud.criar_contrato(db=db, contrato=contrato, prof_id=current_user.id)
+
+@app.get("/contratos/", response_model=List[schemas.ContratoResponse])
+def listar_meus_contratos(
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    return crud.listar_contratos_do_profissional(db=db, prof_id=current_user.id)
+
+# --- ROTAS DE AULA ---
+@app.post("/aulas/", response_model=schemas.AulaResponse)
+def agendar_aula(
+    aula: schemas.AulaCreate,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    # (Idealmente checaríamos se o contrato pertence ao profissional, mas pro MVP simplificamos)
+    return crud.criar_aula(db=db, aula=aula)
+
+@app.get("/aulas/", response_model=List[schemas.AulaResponse])
+def listar_minhas_aulas(
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    return crud.listar_aulas_por_usuario(db=db, user_id=current_user.id, tipo_usuario=current_user.tipo)
