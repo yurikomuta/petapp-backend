@@ -94,3 +94,36 @@ def listar_minhas_aulas(
     current_user: models.Usuario = Depends(auth.get_current_user)
 ):
     return crud.listar_aulas_por_usuario(db=db, user_id=current_user.id, tipo_usuario=current_user.tipo)
+
+
+# --- ROTAS DE EXECUÇÃO (Check-in / Check-out) ---
+
+@app.patch("/aulas/{aula_id}/checkin", response_model=schemas.AulaResponse)
+def checkin_aula(
+    aula_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    # Apenas Profissionais podem dar check-in
+    if current_user.tipo != models.TipoUsuario.PROFISSIONAL:
+        raise HTTPException(status_code=403, detail="Apenas profissionais iniciam aulas")
+        
+    aula = crud.realizar_checkin(db, aula_id)
+    if not aula:
+        raise HTTPException(status_code=404, detail="Aula não encontrada")
+    return aula
+
+@app.post("/aulas/{aula_id}/checkout", response_model=schemas.AulaResponse)
+def checkout_aula(
+    aula_id: int,
+    dados: schemas.AulaCheckout,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(auth.get_current_user)
+):
+    if current_user.tipo != models.TipoUsuario.PROFISSIONAL:
+        raise HTTPException(status_code=403, detail="Apenas profissionais finalizam aulas")
+        
+    aula = crud.realizar_checkout(db, aula_id, dados)
+    if not aula:
+        raise HTTPException(status_code=404, detail="Aula não encontrada")
+    return aula
