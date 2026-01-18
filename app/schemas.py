@@ -63,3 +63,10 @@ class AulaResponse(BaseModel):
     pet_id: Optional[int]
     class Config:
         from_attributes = True
+
+# --- CHECK-OUT ---
+class AulaCheckout(BaseModel):
+    resumo_texto: str
+    nota_comportamento: int # 1 a 5
+    # Futuramente aqui entrará a foto (Upload)
+

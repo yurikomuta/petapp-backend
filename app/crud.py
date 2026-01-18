@@ -1,6 +1,9 @@
 from sqlalchemy.orm import Session
 from app import models, schemas
 from passlib.context import CryptContext
+from datetime import datetime
+from app.models import StatusAula
+
 
 # Configuração de Senha
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -73,3 +76,38 @@ def listar_aulas_por_usuario(db: Session, user_id: int, tipo_usuario: models.Tip
         return db.query(models.Aula).join(models.Contrato).filter(models.Contrato.profissional_id == user_id).all()
     else:
         return db.query(models.Aula).join(models.Contrato).filter(models.Contrato.tutor_id == user_id).all()
+
+
+# --- EXECUÇÃO DA AULA ---
+
+def realizar_checkin(db: Session, aula_id: int):
+    # Busca a aula
+    db_aula = db.query(models.Aula).filter(models.Aula.id == aula_id).first()
+    if not db_aula:
+        return None
+    
+    # Atualiza horário e status
+    db_aula.checkin_hora = datetime.now()
+    db.commit()
+    db.refresh(db_aula)
+    return db_aula
+
+def realizar_checkout(db: Session, aula_id: int, dados: schemas.AulaCheckout):
+    db_aula = db.query(models.Aula).filter(models.Aula.id == aula_id).first()
+    if not db_aula:
+        return None
+
+    # 1. Atualiza dados da aula
+    db_aula.checkout_hora = datetime.now()
+    db_aula.resumo_texto = dados.resumo_texto
+    db_aula.nota_comportamento = dados.nota_comportamento
+    db_aula.status = StatusAula.REALIZADA
+    
+    # 2. Busca o contrato vinculado para descontar o saldo
+    db_contrato = db.query(models.Contrato).filter(models.Contrato.id == db_aula.contrato_id).first()
+    if db_contrato and db_contrato.saldo_aulas > 0:
+        db_contrato.saldo_aulas -= 1 # Desconta uma aula
+    
+    db.commit()
+    db.refresh(db_aula)
+    return db_aula
