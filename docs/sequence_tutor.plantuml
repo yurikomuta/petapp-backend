@@ -1,0 +1,75 @@
+@startuml Tutor Sequence
+
+actor Tutor
+participant "Aplicação" as App
+participant "Backend API" as API
+database "PostgreSQL" as DB
+
+Tutor ->> App: 1. Abre aplicação
+Tutor ->> App: 2. Clica em cadastro
+App ->> Tutor: Formulário de registro
+Tutor ->> App: 3. Preenche dados (email, senha, nome)
+App ->> API: POST /usuarios/\n{nome, email, senha, tipo: 'tutor'}
+API ->> API: Valida dados com Pydantic
+API ->> API: Hash da senha com Bcrypt
+API ->> DB: INSERT usuarios
+DB -->> API: Usuario criado
+API -->> App: 201 Created\n{id, nome, email, tipo}
+App -->> Tutor: Confirmação de cadastro
+
+== Login ==
+Tutor ->> App: 4. Clica em login
+App ->> Tutor: Formulário de login
+Tutor ->> App: 5. Fornece email e senha
+App ->> API: POST /token\n{username: email, password: senha}
+API ->> DB: SELECT usuario WHERE email = ?
+DB -->> API: Usuario encontrado
+API ->> API: Verifica senha (bcrypt.verify)
+API -->> App: 200 OK\n{access_token, token_type}
+App -->> Tutor: Login bem-sucedido, armazena token
+
+== Cadastro de Pet ==
+Tutor ->> App: 6. Clica em "Adicionar Pet"
+App ->> Tutor: Formulário para dados do pet
+Tutor ->> App: 7. Preenche (nome, raça, peso, alergias, etc)
+App ->> API: POST /pets/\nHeader: {Authorization: Bearer <token>}\n{nome, raca, peso, alergias, observacoes}
+API ->> API: Valida token JWT
+API ->> API: Extrai user_id do token
+API ->> DB: INSERT pets
+DB -->> API: Pet criado
+API -->> App: 201 Created\n{id, nome, raca, peso, dono_id}
+App -->> Tutor: Pet cadastrado com sucesso
+
+== Visualizar Meus Pets ==
+Tutor ->> App: 8. Visualiza minha lista de pets
+App ->> API: GET /pets/\nHeader: {Authorization: Bearer <token>}
+API ->> API: Valida token JWT
+API ->> DB: SELECT pets WHERE dono_id = ?
+DB -->> API: Lista de pets
+API -->> App: 200 OK\n{[...pets]}
+App -->> Tutor: Exibe lista de pets
+
+== Visualizar Contratos ==
+Tutor ->> App: 9. Clica em "Meus Contratos"
+App ->> API: GET /contratos/\nHeader: {Authorization: Bearer <token>}
+API ->> API: Valida token JWT
+API ->> DB: SELECT contratos WHERE tutor_id = ?
+DB -->> API: Lista de contratos com profissionais
+API -->> App: 200 OK\n{[...contratos]}
+App -->> Tutor: Exibe contratos com saldo de aulas
+
+== Visualizar Aulas Agendadas ==
+Tutor ->> App: 10. Clica em "Aulas Agendadas"
+App ->> API: GET /aulas/\nHeader: {Authorization: Bearer <token>}
+API ->> API: Valida token JWT
+API ->> DB: SELECT aulas WHERE contrato_id IN\n(contratos do tutor)
+DB -->> API: Lista de aulas
+API -->> App: 200 OK\n{[...aulas]}
+App -->> Tutor: Exibe calendário com aulas agendadas
+
+== Visualizar Histórico de Aula ==
+Tutor ->> App: 11. Clica em aula realizada
+App ->> Tutor: Exibe detalhes\n(data, pet, profissional, resumo, nota, midia)
+Tutor ->> Tutor: Visualiza progresso do pet
+
+@enduml
