@@ -1,0 +1,109 @@
+@startuml Profissional Sequence
+
+actor Profissional
+participant "Aplicação" as App
+participant "Backend API" as API
+database "PostgreSQL" as DB
+
+Profissional ->> App: 1. Abre aplicação
+Profissional ->> App: 2. Clica em cadastro
+App ->> Profissional: Formulário de registro
+Profissional ->> App: 3. Preenche dados (email, senha, nome)
+App ->> API: POST /usuarios/\n{nome, email, senha, tipo: 'profissional'}
+API ->> API: Valida dados com Pydantic
+API ->> API: Hash da senha com Bcrypt
+API ->> DB: INSERT usuarios
+DB -->> API: Usuario criado
+API -->> App: 201 Created\n{id, nome, email, tipo}
+App -->> Profissional: Confirmação de cadastro como profissional
+
+== Login ==
+Profissional ->> App: 4. Clica em login
+App ->> Profissional: Formulário de login
+Profissional ->> App: 5. Fornece email e senha
+App ->> API: POST /token\n{username: email, password: senha}
+API ->> DB: SELECT usuario WHERE email = ?
+DB -->> API: Usuario encontrado (tipo: profissional)
+API ->> API: Verifica senha (bcrypt.verify)
+API -->> App: 200 OK\n{access_token, token_type}
+App -->> Profissional: Login bem-sucedido, armazena token
+
+== Criar Contrato com Tutor ==
+Profissional ->> App: 6. Clica em "Novo Contrato"
+App ->> Profissional: Formulário para criar contrato
+Profissional ->> App: 7. Seleciona tutor e número de aulas (ex: 10)
+App ->> API: POST /contratos/\nHeader: {Authorization: Bearer <token>}\n{tutor_id, total_aulas: 10}
+API ->> API: Valida token JWT
+API ->> API: Extrai profissional_id do token
+API ->> API: Verifica se user é PROFISSIONAL
+note right API: if tipo != PROFISSIONAL:\n  raise 403 Forbidden
+API ->> DB: INSERT contratos
+DB -->> API: Contrato criado
+API -->> App: 201 Created\n{id, tutor_id, profissional_id, saldo_aulas}
+App -->> Profissional: Contrato criado com sucesso
+
+== Agendar Aula ==
+Profissional ->> App: 8. Clica em "Agendar Aula"
+App ->> Profissional: Formulário para agendar
+Profissional ->> App: 9. Seleciona contrato, pet e data
+App ->> API: POST /aulas/\nHeader: {Authorization: Bearer <token>}\n{contrato_id, pet_id, data_agendada}
+API ->> API: Valida token JWT
+API ->> API: Valida data (Pydantic)
+API ->> DB: INSERT aulas (status: AGENDADA)
+DB -->> API: Aula criada
+API -->> App: 201 Created\n{id, status: AGENDADA, data_agendada}
+App -->> Profissional: Aula agendada com sucesso
+
+== Dia da Aula - Check-In ==
+Profissional ->> App: 10. Chega para a aula
+Profissional ->> App: 11. Clica em "Check-In"
+App ->> API: POST /aulas/{id}/checkin\nHeader: {Authorization: Bearer <token>}
+API ->> API: Valida token JWT
+API ->> DB: SELECT aula WHERE id = ?
+DB -->> API: Aula encontrada
+API ->> DB: UPDATE aula SET checkin_hora = NOW()
+DB -->> API: Atualizado
+API -->> App: 200 OK\n{id, checkin_hora}
+App -->> Profissional: Check-In registrado
+
+== Executa a Aula ==
+Profissional ->> Profissional: 12. Realiza adestramento
+Profissional ->> Profissional: 13. Observa comportamento do pet
+Profissional ->> Profissional: 14. Tira fotos/vídeos (se houver)
+
+== Check-Out e Relatório ==
+Profissional ->> App: 15. Finaliza aula, clica "Check-Out"
+App ->> Profissional: Formulário de relatório
+Profissional ->> App: 16. Preenche:\n - Resumo da aula\n - Nota de comportamento (1-5)\n - Upload de mídia (foto/vídeo)
+App ->> API: POST /aulas/{id}/checkout\nHeader: {Authorization: Bearer <token>}\n{resumo_texto, nota_comportamento, midia_url}
+API ->> API: Valida token JWT
+API ->> DB: SELECT aula WHERE id = ?
+DB -->> API: Aula encontrada
+API ->> DB: UPDATE aula SET\ncheckout_hora = NOW(),\nresumo_texto = ?,\nnota_comportamento = ?,\nmidia_url = ?,\nstatus = REALIZADA
+API ->> DB: SELECT contrato WHERE id = ?
+DB -->> API: Contrato encontrado
+API ->> API: Decrementa saldo_aulas
+API ->> DB: UPDATE contrato SET saldo_aulas = saldo_aulas - 1
+DB -->> API: Atualizado
+API -->> App: 200 OK\n{id, status: REALIZADA, checkout_hora}
+App -->> Profissional: Aula finalizada e relatório salvo
+
+== Visualizar Histórico ==
+Profissional ->> App: 17. Clica em "Meu Histórico"
+App ->> API: GET /aulas/\nHeader: {Authorization: Bearer <token>}
+API ->> API: Valida token JWT
+API ->> DB: SELECT aulas WHERE contrato_id IN\n(contratos do profissional)
+DB -->> API: Lista de aulas realizadas
+API -->> App: 200 OK\n{[...aulas com relatórios]}
+App -->> Profissional: Exibe histórico com\nresumos, notas e mídias
+
+== Visualizar Saldo de Contratos ==
+Profissional ->> App: 18. Clica em "Meus Contratos"
+App ->> API: GET /contratos/\nHeader: {Authorization: Bearer <token>}
+API ->> API: Valida token JWT
+API ->> DB: SELECT contratos WHERE profissional_id = ?
+DB -->> API: Lista de contratos
+API -->> App: 200 OK\n{[...contratos com saldo]}
+App -->> Profissional: Exibe contratos ativos\ncom saldo disponível
+
+@enduml
