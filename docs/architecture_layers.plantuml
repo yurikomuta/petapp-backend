@@ -1,0 +1,100 @@
+@startuml Architecture Layers
+
+package "Cliente" {
+  component [Flutter App]
+}
+
+package "Backend - PetApp API" {
+  package "Camada 1: Rotas HTTP" {
+    component [main.py - FastAPI Routes]
+  }
+
+  package "Camada 2: Autenticação & Segurança" {
+    component [auth.py - JWT]
+  }
+
+  package "Camada 3: Validação de Dados" {
+    component [schemas.py - Pydantic]
+  }
+
+  package "Camada 4: Lógica de Negócio" {
+    component [crud.py - Operações]
+  }
+
+  package "Camada 5: ORM & Modelos" {
+    component [models.py - SQLAlchemy]
+  }
+
+  package "Camada 6: Conexão DB" {
+    component [database.py - Connection Pool]
+  }
+}
+
+package "Infraestrutura" {
+  database [PostgreSQL\n15-Alpine]
+  component [Uvicorn\nASGI Server]
+}
+
+package "Containerização" {
+  component [Docker\nDocker Compose]
+}
+
+[Flutter App] -down-> [main.py - FastAPI Routes]
+
+[main.py - FastAPI Routes] -down-> [auth.py - JWT] : Valida Token
+[main.py - FastAPI Routes] -down-> [schemas.py - Pydantic] : Valida Dados
+
+[schemas.py - Pydantic] -down-> [crud.py - Operações]
+[crud.py - Operações] -down-> [models.py - SQLAlchemy]
+
+[models.py - SQLAlchemy] -down-> [database.py - Connection Pool]
+[database.py - Connection Pool] -down-> [PostgreSQL\n15-Alpine]
+
+[main.py - FastAPI Routes] -right-> [Uvicorn\nASGI Server]
+
+[Docker\nDocker Compose] -down-> [Uvicorn\nASGI Server]
+[Docker\nDocker Compose] -down-> [PostgreSQL\n15-Alpine]
+
+note on link : "Requisição HTTP\nGET, POST, PUT, DELETE"
+note on link : "JWT Token\nAutenticação"
+note on link : "Schema Validation\nPydantic"
+note on link : "Query Builder\nSQLAlchemy"
+note on link : "SQL\nDriver psycopg2"
+
+note bottom of [main.py - FastAPI Routes]
+  Endpoints RESTful
+  Documentação Swagger automática
+  Tratamento de erros HTTP
+end note
+
+note bottom of [auth.py - JWT]
+  Geração de token JWT
+  Validação de token
+  Controle de autorização por tipo
+end note
+
+note bottom of [schemas.py - Pydantic]
+  Validação de tipos
+  Conversão de dados
+  Erros automáticos
+end note
+
+note bottom of [crud.py - Operações]
+  Create, Read, Update, Delete
+  Operações com hash de senha
+  Lógica de negócio
+end note
+
+note bottom of [models.py - SQLAlchemy]
+  ORM - Mapping de classes
+  Relacionamentos automáticos
+  Migrations
+end note
+
+note bottom of [database.py - Connection Pool]
+  Conexão com PostgreSQL
+  Pool de conexões
+  Gerenciamento de sessão
+end note
+
+@enduml
