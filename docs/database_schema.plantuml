@@ -1,0 +1,75 @@
+@startuml Database Schema
+
+entity Usuario {
+  *id : INT [PK]
+  --
+  nome : VARCHAR(255) [NOT NULL]
+  email : VARCHAR(255) [UNIQUE, NOT NULL]
+  senha_hash : VARCHAR(255) [NOT NULL]
+  telefone : VARCHAR(20)
+  tipo : ENUM [TUTOR, PROFISSIONAL]
+  criado_em : DATETIME [server_default: NOW()]
+}
+
+entity Pet {
+  *id : INT [PK]
+  --
+  *dono_id : INT [FK -> Usuario.id]
+  nome : VARCHAR(255) [NOT NULL]
+  raca : VARCHAR(100)
+  peso : VARCHAR(50)
+  alergias : TEXT
+  observacoes : TEXT
+  foto_url : VARCHAR(500)
+}
+
+entity Contrato {
+  *id : INT [PK]
+  --
+  *tutor_id : INT [FK -> Usuario.id]
+  *profissional_id : INT [FK -> Usuario.id]
+  total_aulas : INT [default: 10]
+  saldo_aulas : INT [default: 10]
+  ativo : BOOLEAN [default: TRUE]
+  criado_em : DATETIME [server_default: NOW()]
+}
+
+entity Aula {
+  *id : INT [PK]
+  --
+  *contrato_id : INT [FK -> Contrato.id]
+  *pet_id : INT [FK -> Pet.id, NULL]
+  data_agendada : DATETIME [NOT NULL]
+  status : ENUM [AGENDADA, REALIZADA, CANCELADA]
+  checkin_hora : DATETIME
+  checkout_hora : DATETIME
+  resumo_texto : TEXT
+  nota_comportamento : INT [1-5]
+  midia_url : VARCHAR(500)
+}
+
+Usuario "1" -- "*" Pet : "possui"
+Usuario "1" -- "*" Contrato : "é tutor em"
+Usuario "1" -- "*" Contrato : "é profissional em"
+Contrato "1" -- "*" Aula : "gera"
+Pet "1" -- "*" Aula : "participa"
+
+note bottom of Usuario
+  Dois tipos de usuários:
+  - TUTOR: Dono de pets
+  - PROFISSIONAL: Adestrador
+end note
+
+note bottom of Contrato
+  Relaciona tutor e profissional
+  Controla saldo de aulas
+  Uma aula realizada decrementa saldo
+end note
+
+note bottom of Aula
+  Status permite rastrear
+  Check-in/out para controle de tempo
+  Relatório com nota e mídia
+end note
+
+@enduml
